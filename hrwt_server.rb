@@ -1,9 +1,9 @@
-if RUBY_VERSION != "1.9.0" || !(15660..15664).include?(RUBY_REVISION)
-  $stderr.puts("HRWT runs only on Ruby 1.9.0-1 (2008-03-01 revision 15664).")
-  $stderr.puts("If you want to try on other version, edit the condition in hrwt_server.rb")
-  $stderr.puts("and probably you also need some code modification.")
-  exit(1)
-end
+#if RUBY_VERSION != "1.9.0" || !(15660..15664).include?(RUBY_REVISION)
+#  $stderr.puts("HRWT runs only on Ruby 1.9.0-1 (2008-03-01 revision 15664).")
+#  $stderr.puts("If you want to try on other version, edit the condition in hrwt_server.rb")
+#  $stderr.puts("and probably you also need some code modification.")
+#  exit(1)
+#end
 
 $LOAD_PATH << "./lib"
 require "optparse"
@@ -71,6 +71,9 @@ end
 server.mount_proc("/iseq/builtin") do |req, res|
   res["Content-Type"] = "text/javascript"
   res.body = HRWT.builtin_iseqs
+  #res.body = RubyVM::InstructionSequence.compile(%{
+  #  class Foo; def bar; end; end
+  #}).to_a
 end
 
 server.mount_proc("/compile") do |req, res|
