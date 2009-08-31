@@ -24,7 +24,7 @@ OutputCompileOption = {
 }
 
 def compile(path)
-  return VM::InstructionSequence.compile(IO.read(path), "src", 1, OutputCompileOption)
+  return RubyVM::InstructionSequence.compile(IO.read(path), "src", 1, OutputCompileOption)
 end
 
 @opts = OptionParser.getopts("aj")

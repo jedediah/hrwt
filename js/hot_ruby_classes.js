@@ -1,11 +1,10 @@
 // The license of this source is "Ruby License"
 
 RubyVM.addInitializer(function(ctx) {
-
+  
   var objectClass = ctx.defineClass("Object");
   ctx.setConstant(objectClass, "Object", objectClass);
   {
-    
     ctx.defineMethod(ctx.Object, "initialize",
       function(ctx, self) {
         var ctor = ctx.classOf(self).constructor;
@@ -18,6 +17,10 @@ RubyVM.addInitializer(function(ctx) {
         return ctx.classOf(self);
       }
     );
+
+    ctx.defineMethod(ctx.Object, "define_singleton_method", function(ctx,self,args,block,callback) {
+      ctx.defineSingletonMethod(self,args[0],block.call);
+    });
     
     ctx.defineMethod(ctx.Object, "method_missing", {async: true},
       function(ctx, self, args, block, callback) {
@@ -159,6 +162,42 @@ RubyVM.addInitializer(function(ctx) {
     
   }
 
+  ctx.defineClass("RubyVMFrozenCore");
+  {
+    ctx.defineMethod(ctx.RubyVMFrozenCore,"core#set_method_alias",
+      function(ctx,self,args) {
+        ctx.aliasMethod(args[0],args[1],args[2]);
+      }
+    );
+    ctx.defineMethod(ctx.RubyVMFrozenCore,"core#set_variable_alias",
+      function(ctx,self,args) {
+        ctx.aliasGlobal(args[0],args[1]);
+      }
+    );
+    ctx.defineMethod(ctx.RubyVMFrozenCore,"core#undef_method",
+      function(ctx,self,args) {
+        ctx.undefineMethod(args[0],args[1]);
+      }
+    );
+    ctx.defineMethod(ctx.RubyVMFrozenCore,"core#define_method",
+      function(ctx,self,args) {
+        args[2].cbase = args[0];
+        ctx.defineMethod(args[0],args[1],args[2]); // block passed as argument
+      }
+    );
+    ctx.defineMethod(ctx.RubyVMFrozenCore,"core#define_singleton_method",
+      function(ctx,self,args) {
+        args[2].cbase = ctx.currentFrame().cbase
+        ctx.defineSingletonMethod(args[0],args[1],args[2]); // block passed as argument
+      }
+    );
+    ctx.defineMethod(ctx.RubyVMFrozenCore,"core#set_postexe",
+      function(ctx,self,args) {
+        ctx.addEndBlock(ctx.newProc(args[0],ctx.currentFrame())) // block passed as argument
+      }
+    );
+  }
+
   ctx.defineClass("Module");
   {
     
@@ -205,6 +244,12 @@ RubyVM.addInitializer(function(ctx) {
         }
       }
     );
+
+    ctx.defineMethod(ctx.Module, "define_method",
+      function(ctx, self, args, block) {
+        ctx.defineMethod(self,args[0],block.call);
+      }
+    );
     
     ctx.defineMethod(ctx.Module, "alias_method",
       function(ctx, self, args) {
@@ -237,6 +282,20 @@ RubyVM.addInitializer(function(ctx) {
       function(ctx, self, args) {
         // TODO: rewrite it without dynamic function.
         args.each(function(arg) {
+          ctx.defineMethod(self, arg.value + "=", function(obj, writerArgs) {
+            return ctx.setInstanceVar(obj, "@" + arg.value, writerArgs[0]);
+          });
+        });
+      }
+    );
+    
+    ctx.defineMethod(ctx.Module, "attr_accessor",
+      function(ctx, self, args) {
+        // TODO: rewrite it without dynamic function.
+        args.each(function(arg) {
+          ctx.defineMethod(self, arg.value, function(obj) {
+            return ctx.getInstanceVar(obj, "@" + arg.value);
+          });
           ctx.defineMethod(self, arg.value + "=", function(obj, writerArgs) {
             return ctx.setInstanceVar(obj, "@" + arg.value, writerArgs[0]);
           });
@@ -287,7 +346,7 @@ RubyVM.addInitializer(function(ctx) {
   ctx.defineClass("NativeEnvironment");
   ctx.defineClass("NativeObject");
   ctx.defineClass("NativeClass");
-
+  
   ctx.defineModule("Kernel");
   {
   
@@ -686,6 +745,60 @@ RubyVM.addInitializer(function(ctx) {
     
   }
 
+  ctx.defineClass("Symbol");
+  ctx.defineMethods(ctx.Symbol,{
+    "==": function(ctx,self,args) {
+      ctx.sendSync(args[0],'respond_to?','to_sym') == ;
+      self.value == args[0]
+    },
+    inspect: function(ctx,self) {
+    },
+    to_s: function(ctx,self) {
+    },
+    id2name: function(ctx,self) {
+    },
+    intern: function(ctx,self) {
+    },
+    to_sym: function(ctx,self) {
+    },
+    to_proc: function(ctx,self) {
+    },
+    succ: function(ctx,self) {
+    },
+    next: function(ctx,self) {
+    },
+    "<=>": function(ctx,self) {
+    },
+    casecmp: function(ctx,self) {
+    },
+    "=~": function(ctx,self) {
+    },
+    "[]": function(ctx,self) {
+    },
+    slice: function(ctx,self) {
+    },
+    length: function(ctx,self) {
+    },
+    size: function(ctx,self) {
+    },
+    "empty?": function(ctx,self) {
+    },
+    match: function(ctx,self) {
+    },
+    upcase: function(ctx,self) {
+    },
+    downcase: function(ctx,self) {
+    },
+    capitalize: function(ctx,self) {
+    },
+    swapcase: function(ctx,self) {
+    },
+    encoding: function(ctx,self) {
+    },
+    pretty_print_cycle: function(ctx,self) {
+    }
+  });
+  
   ctx.defineClass("String");
   {
     
@@ -1017,6 +1130,12 @@ RubyVM.addInitializer(function(ctx) {
           frame = frame.senderFrame;
         }
         return ctx.newArray(backtrace);
+      }
+    );
+
+    ctx.defineMethod(ctx.Exception, "__message__",
+      function(ctx, self) {
+        return ctx.getInstanceVar(self, "@message")
       }
     );
     

@@ -42,13 +42,14 @@ module HRWT
     def builtin_iseqs
       iseq_arys = REQUIRED_PATHS.map() do |path|
         src = path == "(bootstrap_dynamic)" ? bootstrap_dynamic_source : File.read(path)
+        STDERR.puts "Compiling builtin '#{path}'"
         compile_to_array(src, path)
       end
       return iseq_arys.to_json()
     end
     
     def compile_to_array(src, file_name)
-      iseq = VM::InstructionSequence.compile(src, file_name, 1, OutputCompileOption).to_a()
+      iseq = RubyVM::InstructionSequence.compile(src, file_name, 1, OutputCompileOption).to_a()
       return convert_iseq(iseq) # TODO: write seriously
     end
     
@@ -65,23 +66,25 @@ module HRWT
     
     def serialize_object(obj)
       case obj
-        when NilClass, TrueClass, FalseClass, Integer, Float, String
-          return obj
-        when Regexp
-          return {"type" => "regexp", "source" => obj.source, "options" => obj.options}
-        when Symbol
-          return {"type" => "symbol", "value" => obj.to_s()}
-        when Range
-          return {
-            "type" => "range",
-            "begin" => serialize_object(obj.begin),
-            "end" => serialize_object(obj.end),
-            "exclude_end" => obj.exclude_end?,
-          }
-        when Module
-          return {"type" => "constant", "name" => obj.name}
-        else
-          raise("Unexpected type of object: %p" % obj)
+      when NilClass, TrueClass, FalseClass, Integer, String
+        return obj
+      when Float
+        return {"type" => "float", "value" => obj}
+      when Regexp
+        return {"type" => "regexp", "source" => obj.source, "options" => obj.options}
+      when Symbol
+        return {"type" => "symbol", "value" => obj.to_s()}
+      when Range
+        return {
+          "type" => "range",
+          "begin" => serialize_object(obj.begin),
+          "end" => serialize_object(obj.end),
+          "exclude_end" => obj.exclude_end?,
+        }
+      when Module
+        return {"type" => "constant", "name" => obj.name}
+      else
+        raise("Unexpected type of object: %p" % obj)
       end
     end
     
